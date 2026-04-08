@@ -13,6 +13,31 @@ class AuthController extends Controller
     // CÁC API KHÔNG CẦN ĐĂNG NHẬP
     // ==========================================
 
+    // API: Đăng ký tài khoản Khách hàng (User từ web React)
+    public function register(Request $request)
+    {
+        // 1. Kiểm tra dữ liệu (React đang gửi lên 'name', 'email', 'password', 'password_confirmation')
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => 'required|string|email|max:100|unique:users',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        // 2. Tạo tài khoản. Lưu ý map 'name' vào 'full_name' và 'password' vào 'password_hash'
+        $user = User::create([
+            'full_name' => $request->name,
+            'email' => $request->email,
+            'password_hash' => Hash::make($request->password), 
+            'is_active' => 1,
+            'created_at' => now()
+        ]);
+
+        return response()->json([
+            'message' => 'Đăng ký tài khoản khách hàng thành công!',
+            'user' => $user
+        ], 201);
+    }
+
     // API 1: Đăng ký tài khoản Đối tác khách sạn
     public function registerPartner(Request $request)
     {
@@ -41,7 +66,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // API 2: Đăng nhập
+    // API 2: Đăng nhập (Dùng chung cho cả User và Partner)
     public function login(Request $request)
     {
         $request->validate([
@@ -51,6 +76,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
+        // Kiểm tra hash password
         if (!$user || !Hash::check($request->password, $user->password_hash)) {
             return response()->json([
                 'message' => 'Email hoặc mật khẩu không chính xác!'
