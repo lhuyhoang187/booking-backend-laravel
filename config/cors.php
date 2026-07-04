@@ -25,7 +25,10 @@ return [
         'https://booking-admin-angular-4z3l.vercel.app', // Link Vercel Angular
     ],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins' => [
+        'http://localhost:3000', // Cho phép trang của Khách hàng (React)
+        'http://localhost:4200', // Cho phép trang của Chủ khách sạn (Angular)
+    ],
 
     'allowed_headers' => ['*'],
 

@@ -9,9 +9,17 @@ class BookingDetail extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'booking_id', 'room_type_id', 'check_in_date', 'check_out_date', 'rooms_count', 'subtotal'
+        'booking_id',
+        'room_type_id',
+        'check_in_date',
+        'check_out_date',
+        'rooms_count',
+        'subtotal'
     ];
-
+    public function booking()
+    {
+        return $this->belongsTo(Booking::class, 'booking_id');
+    }
     // Liên kết để biết chi tiết này đặt loại phòng nào
     public function roomType()
     {

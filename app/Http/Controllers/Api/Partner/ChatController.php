@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Http\Controllers\Api\Partner;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Models\ChatThread;
+use App\Models\ChatMessage;
+use App\Models\Hotel;
+use App\Models\Customer;
+
+class ChatController extends Controller
+{
+    public function index()
+    {
+        try {
+            $threads = \App\Models\ChatThread::with(['customer', 'booking', 'messages'])
+                ->orderBy('id', 'desc')
+                ->get();
+
+            // Sửa đoạn map trong index()
+            $formatted = $threads->map(function ($thread) {
+                // Sắp xếp tin nhắn theo thời gian tăng dần (cũ lên trước, mới xuống dưới)
+                $sortedMessages = $thread->messages->sortBy('created_at')->values();
+
+                $customerName = 'Khách hàng';
+                if ($thread->customer) {
+                    $customerName = trim($thread->customer->last_name . ' ' . $thread->customer->first_name);
+                }
+                return [
+                    'id' => $thread->id,
+                    // Trong Partner/ChatController.php
+                    'full_name' => $customerName, // Đã sửa lỗi lấy tên
+                    'booking_id' => $thread->booking ? $thread->booking->booking_code : null,
+                    'message' => $sortedMessages->isNotEmpty() ? $sortedMessages->last()->message : 'Chưa có tin nhắn',
+                    'created_at' => $sortedMessages->isNotEmpty() ? $sortedMessages->last()->created_at : $thread->created_at,
+                    'status' => $thread->status,
+                    'messages' => $sortedMessages // Đã sắp xếp
+                ];
+            });
+            return response()->json(['data' => $formatted]);
+        } catch (\Exception $e) {
+            // LỖI 500 SẼ HIỆN RA Ở ĐÂY - CHỤP MÀN HÌNH NẾU VẪN LỖI
+            return response()->json(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
+        }
+    }
+
+    public function store(Request $request, int $threadId)
+    {
+        $request->validate(['message' => 'required|string']);
+
+        $msg = ChatMessage::create([
+            'thread_id' => $threadId,
+            'sender_id' => Auth::id(),
+            'sender_type' => 'partner',
+            'message' => $request->message,
+            'created_at' => now() // Bơm luôn thời gian hiện tại
+        ]);
+
+        return response()->json($msg, 201);
+    }
+
+    public function getMessages(int $threadId)
+    {
+        // Lấy tất cả tin nhắn của thread này
+        $messages = ChatMessage::where('thread_id', $threadId)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return response()->json(['data' => $messages]);
+    }
+
+    public function updateStatus(Request $request, int $id)
+    {
+        $request->validate([
+            'status' => 'required|integer'
+        ]);
+
+        $thread = ChatThread::find($id);
+        if ($thread) {
+            $thread->status = $request->status;
+            $thread->save();
+            return response()->json(['message' => 'Cập nhật trạng thái thành công']);
+        }
+
+        return response()->json(['message' => 'Không tìm thấy cuộc hội thoại'], 404);
+    }
+}
